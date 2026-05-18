@@ -1,0 +1,78 @@
+name: healthwatch-monitor-iot
+
+services:
+  influxdb3-core:
+    container_name: influxdb3-core
+    image: influxdb:3-core
+    ports:
+      - "8181:8181"
+    command:
+      - influxdb3
+      - serve
+      - --node-id=node0
+      - --object-store=file
+      - --data-dir=/var/lib/influxdb3/data
+      - --plugin-dir=/var/lib/influxdb3/plugins
+    environment:
+      - INFLUXDB3_AUTH_TOKEN=${INFLUXDB3_AUTH_TOKEN}
+      - INFLUXDB3_HOST_URL=${INFLUXDB3_HOST_URL}
+      - INFLUXDB3_DATABASE_NAME=${INFLUXDB3_DATABASE_NAME}
+    volumes:
+      - type: bind
+        source: ~/.influxdb3/core/data
+        target: /var/lib/influxdb3/data
+      - type: bind
+        source: ~/.influxdb3/core/plugins
+        target: /var/lib/influxdb3/plugins
+    networks:
+      - monitor-iot
+
+  grafana:
+    image: grafana/grafana:main-ubuntu-slim
+    container_name: grafana-iot
+    ports:
+      - "3000:3000"
+    depends_on:
+      - influxdb3-core
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+    networks:
+      - monitor-iot
+
+  mosquitto:
+    image: eclipse-mosquitto:2.1.2-alpine
+    container_name: mosquitto-iot
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./conf/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+    networks:
+      - monitor-iot
+
+  telegraf:
+    image: telegraf:1.38-alpine
+    container_name: telegraf-iot
+    depends_on:
+      - influxdb3-core
+      - mosquitto
+    volumes:
+      - ./conf/telegraf.conf:/etc/telegraf/telegraf.conf
+    environment:
+      - INFLUXDB3_AUTH_TOKEN=${INFLUXDB3_AUTH_TOKEN}
+      - INFLUXDB3_DATABASE_NAME=${INFLUXDB3_DATABASE_NAME}
+    networks:
+      - monitor-iot
+
+volumes:
+  grafana_data:
+  mosquitto_data:
+  mosquitto_logs:
+
+networks:
+  monitor-iot:
