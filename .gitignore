@@ -1,2 +1,12 @@
 .vscode/*
 .env
+# Archivos temporales de Python
+__pycache__/
+*.pyc
+
+# Credenciales de seguridad de Firebase
+firebase-credentials.json
+
+# Influxdb
+influxdb-data/
+influxdb-plugins/
