@@ -1,13 +1,9 @@
-# app/services/telemetria_service.py
 from influxdb_client_3 import InfluxDBClient3
 import os
 import pandas as pd
+from app.core.config import INFLUX_HOST, INFLUX_TOKEN, INFLUX_DATABASE
 
-HOST = os.getenv("INFLUXDB3_HOST_URL", "http://localhost:8181")
-TOKEN = os.getenv("INFLUXDB3_AUTH_TOKEN", "apiv3_RE8r67lajh9RM7KoR5Hz1MvNaAzI5OeGtbmqFEtYkPcsZf_axngEOVXONc30tj73xOO3SP91B-vsmIyMF2YeHw")
-DATABASE = os.getenv("INFLUXDB3_DATABASE_NAME", "health-watch")
-
-client = InfluxDBClient3(host=HOST, token=TOKEN, database=DATABASE)
+client = InfluxDBClient3(host=INFLUX_HOST, token=INFLUX_TOKEN, database=INFLUX_DATABASE)
 
 def obtener_historial_paciente(paciente_id: str, limite: int = 50) -> list:
     query = f"""
