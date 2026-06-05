@@ -1,4 +1,3 @@
-# app/routers/pacientes.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.security import verificar_token
 from app.services import pacientes_service, telemetria_service
