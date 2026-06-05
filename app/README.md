@@ -14,6 +14,8 @@ El proyecto utiliza una arquitectura de microservicios y bases de datos especial
 * **Backend (Python / FastAPI):**
     * Actúa como capa de seguridad (validación de tokens JWT de Firebase).
     * Sirve el historial de telemetría extrayendo datos de InfluxDB.
+    * Utiliza `APScheduler` para ejecutar revisiones periódicas en segundo plano (ej. recordatorios de medicinas).
+    * Integración con Firebase Cloud Messaging (FCM) para enviar alertas en tiempo real a los dispositivos móviles.
     * Preparado para futuras implementaciones de Machine Learning (ML).
 * **Infraestructura IoT (Docker):**
     * **Mosquitto:** Broker MQTT que recibe los latidos del reloj ESP32.
@@ -60,18 +62,20 @@ El sistema utiliza un enfoque híbrido, separando los datos relacionales/estáti
     * ID de Documento: UID proporcionado por Firebase Auth.
     * nombre: String (ej. "Juan Perez")
     * rol: String ("cuidador" o "familiar")
-    * pacientes_asignados: Array de Strings (ej. ["paciente_01", "paciente_02"])
+    * fcm_token_celular: String (Token del dispositivo físico para recibir notificaciones Push de Google).
 
 * **Colección Principal: pacientes** (Adultos Mayores)
     * ID de Documento: Identificador único del paciente (ej. "paciente_01").
     * nombre_completo: String (ej. "Arturo Gomez")
     * id_reloj_esp32: String (MAC o ID del hardware, ej. "esp_mac_001")
-    * contactos_emergencia: Array de Objetos (nombres y teléfonos)
     * bateria_actual: Number (Último % de batería registrado)
-    * **Sub-colección: alertas** (Historial de emergencias del paciente)
-        * tipo: String ("caida", "oxigeno_bajo", "taquicardia")
-        * fecha_hora: Timestamp
-        * estado: String ("revisada", "no_revisada")
+    * contactos_emergencia: Array de Objetos (nombres y teléfonos)
+    * cuidadores_asignados: Array de Strings (Contiene los UIDs de los usuarios autorizados, ej. ["UID_1", "UID_2"])
+    * **Sub-colección: medicamentos** (Sistema de recordatorios)
+        * ID de Documento: String (Autogenerado por Firestore)
+        * nombre: String (ej. "Losartán")
+        * horas: Array de Strings (Formato "%I:%M %p", ej. ["08:00 am", "08:00 pm"])
+        * frecuencia: String (ej. "Diario")
 
 ### 2. InfluxDB v3 (Datos de Telemetría)
 
@@ -132,7 +136,15 @@ FastAPI genera automáticamente documentación interactiva basada en OpenAPI. Un
 
 ### Endpoints Principales:
 
-* POST /api/auth/login-prueba: Genera un token JWT simulado para pruebas de desarrollo mediante peticiones a Google Identity Toolkit.
-* GET /api/pacientes/: Lista los pacientes asignados al cuidador autenticado.
-* GET /api/pacientes/{paciente_id}: Obtiene el perfil estático de un paciente específico desde Firestore, validando que el cuidador esté asignado.
-* GET /api/pacientes/{paciente_id}/telemetria: Cruza la validación de seguridad de Firestore y extrae el historial biométrico reciente del paciente desde InfluxDB usando SQL estándar.
+* `POST /api/auth/login-prueba`: Genera un token JWT simulado para pruebas de desarrollo mediante peticiones a Google Identity Toolkit.
+* `GET /api/pacientes/`: Lista los pacientes asignados al cuidador autenticado.
+* `GET /api/pacientes/{paciente_id}`: Obtiene el perfil estático de un paciente específico desde Firestore, validando que el cuidador esté asignado.
+* `GET /api/pacientes/{paciente_id}/telemetria`: Cruza la validación de seguridad de Firestore y extrae el historial biométrico reciente del paciente desde InfluxDB usando SQL estándar.
+
+* **Usuarios y Notificaciones:**
+    * `PUT /api/usuarios/fcm-token`: Registra o actualiza el FCM Token del dispositivo móvil del cuidador autenticado para habilitar alertas Push.
+* **Gestión de Medicamentos:**
+    * `POST /api/medicamentos/{paciente_id}`: Crea un nuevo recordatorio de medicamento para un paciente.
+    * `GET /api/medicamentos/{paciente_id}`: Lista todos los medicamentos programados del paciente.
+    * `PUT /api/medicamentos/{paciente_id}/{medicamento_id}`: Modifica los datos (horas, nombre, frecuencia) de un medicamento existente.
+    * `DELETE /api/medicamentos/{paciente_id}/{medicamento_id}`: Realiza el borrado físico de un recordatorio de medicamento.
