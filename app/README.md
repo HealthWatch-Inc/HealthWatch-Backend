@@ -36,6 +36,7 @@ El proyecto utiliza una arquitectura de microservicios y bases de datos especial
 fastapi 
 uvicorn
 python-dotenv
+apscheduler
 
 # Conexión con InfluxDB y procesamiento de datos 
 influxdb-client-v3 
