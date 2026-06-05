@@ -16,11 +16,10 @@ def revisar_medicamentos_y_notificar():
             paciente_id = paciente.id
             cuidadores = datos_paciente.get("cuidadores_asignados", [])
             
-            # Buscamos medicamentos activos de este paciente
+            # Buscamos medicamentos de este paciente
             medicamentos_ref = db.collection('pacientes').document(paciente_id).collection('medicamentos')
-            meds_activos = medicamentos_ref.where('activo', '==', True).stream()
             
-            for med in meds_activos:
+            for med in medicamentos_ref.stream():
                 datos_med = med.to_dict()
                 horas_programadas = datos_med.get("horas", [])
                 nombre_med = datos_med.get("nombre", "Medicamento")

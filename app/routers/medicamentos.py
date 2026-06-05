@@ -24,7 +24,6 @@ def agregar_medicamento(
         "nombre": medicamento.nombre,
         "horas": medicamento.horas,
         "frecuencia": medicamento.frecuencia,
-        "activo": True
     }
     
     try:
@@ -50,3 +49,45 @@ def listar_medicamentos(
         return lista
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/{paciente_id}/{medicamento_id}")
+def editar_medicamento(
+    paciente_id: str,
+    medicamento_id: str,
+    medicamento: MedicamentoCreate,
+    usuario_actual = Depends(verificar_token)
+):
+    doc_data = {
+        "nombre": medicamento.nombre,
+        "horas": medicamento.horas,
+        "frecuencia": medicamento.frecuencia
+    }
+    
+    try:
+        medicamentos_service.actualizar_medicamento(paciente_id, medicamento_id, doc_data)
+        
+        return {
+            "mensaje": "Medicamento actualizado con éxito",
+            "id_medicamento": medicamento_id
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Error al actualizar en base de datos: {str(e)}"
+        )
+
+@router.delete("/{paciente_id}/{medicamento_id}")
+def borrar_medicamento(
+    paciente_id: str,
+    medicamento_id: str,
+    usuario_actual = Depends(verificar_token)
+):
+    try:
+        medicamentos_service.eliminar_medicamento(paciente_id, medicamento_id)
+        
+        return {"mensaje": "Medicamento eliminado con éxito"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail=f"Error al eliminar en base de datos: {str(e)}"
+        )

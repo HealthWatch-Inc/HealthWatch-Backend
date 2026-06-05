@@ -8,8 +8,8 @@ def crear_medicamento(paciente_id: str, datos_medicamento: dict) -> str:
 
 def obtener_medicamentos_por_paciente(paciente_id: str) -> list:
     medicamentos_ref = db.collection("pacientes").document(paciente_id).collection("medicamentos")
-    docs = medicamentos_ref.where("activo", "==", True).stream()
-    
+    docs = medicamentos_ref.stream()
+
     lista = []
     for doc in docs:
         datos = doc.to_dict()
@@ -17,3 +17,14 @@ def obtener_medicamentos_por_paciente(paciente_id: str) -> list:
         lista.append(datos)
         
     return lista
+
+def actualizar_medicamento(paciente_id: str, medicamento_id: str, datos_actualizados: dict) -> bool:
+    doc_ref = db.collection("pacientes").document(paciente_id).collection("medicamentos").document(medicamento_id)
+    doc_ref.update(datos_actualizados)
+    return True
+
+def eliminar_medicamento(paciente_id: str, medicamento_id: str) -> bool:
+    doc_ref = db.collection("pacientes").document(paciente_id).collection("medicamentos").document(medicamento_id)
+    doc_ref.delete()
+
+    return True
