@@ -1,0 +1,13 @@
+# Servidor web y framework 
+fastapi 
+uvicorn
+python-dotenv
+
+# Conexión con InfluxDB y procesamiento de datos 
+influxdb-client-v3 
+pandas 
+pyarrow 
+
+# SDK de Firebase y utilidades de red 
+firebase-admin 
+requests 
