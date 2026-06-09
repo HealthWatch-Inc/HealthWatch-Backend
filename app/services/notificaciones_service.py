@@ -13,6 +13,8 @@ def revisar_medicamentos_y_notificar():
         for med in meds_programados:
             datos_med = med.to_dict()
             nombre_med = datos_med.get("nombre", "Medicamento")
+
+            print(f"Medicamento encontrado: {nombre_med}")
             
             paciente_ref = med.reference.parent.parent 
             paciente_doc = paciente_ref.get()
@@ -20,11 +22,15 @@ def revisar_medicamentos_y_notificar():
             if paciente_doc.exists:
                 cuidadores = paciente_doc.to_dict().get("cuidadores_asignados", [])
 
+                print(f"Cuidadores asignados: {cuidadores}")
+
                 for uid_cuidador in cuidadores:
                     usuario_doc = db.collection('usuarios').document(uid_cuidador).get()
                     
                     if usuario_doc.exists:
                         token_celular = usuario_doc.to_dict().get("fcm_token_celular")
+
+                        print(f"Token encontrado: {token_celular}")
                         
                         if token_celular:
                             enviar_notificacion_push(token_celular, nombre_med)
@@ -42,8 +48,9 @@ def enviar_notificacion_push(token: str, medicamento: str):
     )
     
     try:
-        respuesta = messaging.send(mensaje)
-        print(f"Notificación enviada con éxito: {respuesta}")
+        print("Enviando notificación...")
+        # respuesta = messaging.send(mensaje)
+        # print(f"Notificación enviada con éxito: {respuesta}")
     except Exception as e:
         print(f"Error al enviar notificación al token {token}: {e}")
 
