@@ -29,3 +29,29 @@ def obtener_historial_paciente(paciente_id: str, limite: int = 50) -> list:
     except Exception as e:
         print(f"Error al consultar InfluxDB: {e}")
         return []
+
+def obtener_ultima_ventana(paciente_id: str, tamanio: int = 30) -> list:
+    """
+    Retorna una lista de diccionarios con las últimas 'tamanio' lecturas
+    de heart_rate, spo2, temp, ordenadas de la más antigua a la más reciente.
+    """
+    query = f"""
+        SELECT time, heart_rate, spo2, temp
+        FROM biometrics
+        WHERE id_patient = '{paciente_id}'
+        ORDER BY time DESC
+        LIMIT {tamanio}
+    """
+    try:
+        tabla = client.query(query=query, language="sql")
+        df = tabla.to_pandas()
+        if df.empty:
+            return []
+        df['time'] = df['time'].astype(str)
+        registros = df.to_dict(orient='records')
+        # Invertir para que quede cronológico ascendente (primero el más antiguo)
+        registros.reverse()
+        return registros
+    except Exception as e:
+        print(f"Error en obtener_ultima_ventana: {e}")
+        return []

@@ -4,10 +4,16 @@ uvicorn
 python-dotenv
 
 # Conexión con InfluxDB y procesamiento de datos 
-influxdb-client-v3 
+influxdb3-python 
 pandas 
 pyarrow 
 
 # SDK de Firebase y utilidades de red 
 firebase-admin 
-requests 
+requests
+
+# Machine Learning
+torch
+joblib
+scikit-learn
+numpy
