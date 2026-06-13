@@ -104,7 +104,7 @@ def obtener_estado_actual(paciente_id: str, usuario_actual: dict = Depends(verif
     }
 
 @router.get("/{paciente_id}/estado_caida")
-def obtener_estado_caida(paciente_id: str, usuario_actual: dict = Depends(lambda: {"uid": "GVVhi1xpSVc9MpVO5gqQ0GcI6mH2"})):
+def obtener_estado_caida(paciente_id: str, usuario_actual: dict = Depends(verificar_token)):
     # Verificar permisos (igual que en otros endpoints)
     uid_cuidador = usuario_actual.get("uid")
     paciente = pacientes_service.obtener_paciente_por_id(paciente_id)
