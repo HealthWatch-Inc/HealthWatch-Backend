@@ -4,18 +4,22 @@ from app.routers import pacientes, auth
 from app.routers import medicamentos, usuarios, pacientes, auth
 from contextlib import asynccontextmanager
 from app.services.alertas_ml import scheduler_ml
+from app.services.alertas_caidas import scheduler_caidas
 from app.services.notificaciones_service import scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Iniciando motor de notificaciones (medicamentos)...")
     scheduler.start()
-    print("Iniciando motor de clasificación automática ML...")
+    print("Iniciando motor de clasificación automática ML (salud)...")
     scheduler_ml.start()
+    print("Iniciando motor de detección automática de caídas...")
+    scheduler_caidas.start()
     yield
     print("Deteniendo motores...")
     scheduler.shutdown()
     scheduler_ml.shutdown()
+    scheduler_caidas.shutdown()
 
 app = FastAPI(
     title="HealthWatch-Backend-API",
