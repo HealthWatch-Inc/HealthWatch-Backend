@@ -12,25 +12,25 @@ else:
     ID_PATIENT = "adulto_mayor_test"
     ID_DEVICE = "dispositivo_reloj_01"
 
-# Configuración
 BROKER = "localhost"
 PORT = 1883
 TOPIC = f"healthwatch/{ID_PATIENT}/{ID_DEVICE}/biometrics"
 
-client = mqtt.Client()
+# Callback cuando el cliente se conecta al broker
+def on_connect(client, userdata, flags, rc, properties=None):
+    if rc == 0:
+        print(f"Conectado al broker MQTT en {BROKER}:{PORT}")
+    else:
+        print(f"Fallo de conexión, código de error: {rc}")
 
-print("Esperando a que el broker MQTT esté listo...")
-while True:
-    try:
-        client.connect(BROKER, PORT, 60)
-        break
-    except Exception as e:
-        print(f"Broker no disponible: {e}")
-        time.sleep(2)
+# Crear el cliente MQTT con la nueva API
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+client.on_connect = on_connect
 
-print("¡Conectado al Broker MQTT! Iniciando envío de datos simulados...")
+print("Intentando conectar al broker MQTT...")
+client.connect(BROKER, PORT, 60)
+client.loop_start()  # Iniciar el loop de red en segundo plano
 
-# Variables base para simular cambios suaves (caminata aleatoria)
 heart_rate = 72.0
 spo2 = 98
 battery = 100
@@ -38,40 +38,35 @@ tick = 0
 
 while True:
     tick += 1
-    
-    # 1. Simulación de Signos Vitales (Variaciones suaves)
+
     heart_rate += random.uniform(-1.5, 1.5)
-    heart_rate = max(60.0, min(heart_rate, 95.0)) # Límites normales
-    
-    if random.random() > 0.95:  # Pequeño bache ocasional en SpO2
+    heart_rate = max(60.0, min(heart_rate, 95.0))
+
+    if random.random() > 0.95:
         spo2 = random.randint(95, 97)
     else:
         spo2 = random.randint(97, 99)
-        
-    # 2. Simulación de Red y Batería
+
     rssi = random.randint(-65, -45)
-    if tick % 60 == 0 and battery > 1: # Baja 1% de batería cada 60 segundos ficticios
+    if tick % 60 == 0 and battery > 1:
         battery -= 1
 
-    # 3. Simulación de Movimiento de Muñeca Fisiológico (Ruido base en reposo/caminata leve)
-    # Usamos senos/cosenos para que el acelerómetro dibuje ondas en Grafana
     ax = 0.1 * math.sin(tick * 0.5) + random.uniform(-0.05, 0.05)
     ay = 0.2 * math.cos(tick * 0.3) + random.uniform(-0.05, 0.05)
-    az = 9.81 + random.uniform(-0.1, 0.1) # Gravedad base en Z
-    
+    az = 9.81 + random.uniform(-0.1, 0.1)
+
     gx = 0.02 * math.sin(tick * 0.2)
     gy = 0.01 * math.cos(tick * 0.4)
     gz = random.uniform(-0.01, 0.01)
 
-    # 4. SIMULACIÓN DE EMERGENCIA (Cada 120 segundos simula una caída fuerte)
+    # Cada 120 ticks simula una caída
     if tick % 120 == 0:
         print("⚠️ [MOCK] Simulando evento de caída detectada...")
-        ax, ay, az = random.uniform(25.0, 35.0), random.uniform(20.0, 30.0), random.uniform(-5.0, 5.0) # Impacto masivo
+        ax, ay, az = random.uniform(25.0, 35.0), random.uniform(20.0, 30.0), random.uniform(-5.0, 5.0)
         gx, gy, gz = random.uniform(5.0, 10.0), random.uniform(5.0, 10.0), random.uniform(5.0, 10.0)
-        heart_rate = random.uniform(115.0, 135.0) # Taquicardia por susto
-        spo2 = 94 # Caída de oxígeno transitoria
+        heart_rate = random.uniform(115.0, 135.0)
+        spo2 = 94
 
-    # Payload adaptado al nuevo esquema (id_device)
     payload = {
         "id_patient": ID_PATIENT,
         "id_device": ID_DEVICE,
@@ -88,5 +83,11 @@ while True:
         "battery": int(battery)
     }
 
-    client.publish(TOPIC, json.dumps(payload))
-    time.sleep(1.0) # Envia cada 1 segundo exacto
+    # Publicar el mensaje
+    result = client.publish(TOPIC, json.dumps(payload))
+    if result.rc == mqtt.MQTT_ERR_SUCCESS:
+        print(f"Datos transmitidos exitosamente a tópico: {TOPIC}")
+    else:
+        print(f"Error al publicar: {result.rc}")
+
+    time.sleep(1.0)

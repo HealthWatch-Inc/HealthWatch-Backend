@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.security import verificar_token
 from app.services import pacientes_service, telemetria_service
-from app.services.ml_service import predecir_ventana
+from app.services.ml_services import predecir_ventana
 from app.services.telemetria_service import obtener_ultima_ventana
 
 router = APIRouter(
