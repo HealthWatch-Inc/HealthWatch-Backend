@@ -55,6 +55,7 @@ while True:
 
     # 3. Simulación de Movimiento de Muñeca Fisiológico (Ruido base en reposo/caminata leve)
     # Usamos senos/cosenos para que el acelerómetro dibuje ondas en Grafana
+    """
     ax = 0.1 * math.sin(tick * 0.5) + random.uniform(-0.05, 0.05)
     ay = 0.2 * math.cos(tick * 0.3) + random.uniform(-0.05, 0.05)
     az = 9.81 + random.uniform(-0.1, 0.1) # Gravedad base en Z
@@ -62,6 +63,29 @@ while True:
     gx = 0.02 * math.sin(tick * 0.2)
     gy = 0.01 * math.cos(tick * 0.4)
     gz = random.uniform(-0.01, 0.01)
+    """
+
+    es_paso = tick % 2 == 0 # Simula el impacto de un paso cada 2 segundos
+    
+    if es_paso:
+        # El impacto del talón genera una desaceleración/aceleración vertical fuerte (Eje Z y Y)
+        ax = random.uniform(-1.0, 1.0)
+        ay = random.uniform(1.5, 3.5)   # Empuje hacia adelante
+        az = 9.81 + random.uniform(2.0, 4.5) # Impacto vertical contra el suelo
+        
+        # El movimiento del brazo balanceándose genera rotación real en el giroscopio
+        gx = random.uniform(15.0, 25.0) 
+        gy = random.uniform(10.0, 20.0)
+        gz = random.uniform(-5.0, 5.0)
+    else:
+        # Estado de balanceo suave entre pasos (reposo relativo en movimiento)
+        ax = 0.1 * math.sin(tick * 0.5) + random.uniform(-0.1, 0.1)
+        ay = 0.2 * math.cos(tick * 0.3) + random.uniform(-0.1, 0.1)
+        az = 9.81 + random.uniform(-0.3, 0.3)
+        
+        gx = random.uniform(0.5, 2.0)
+        gy = random.uniform(0.5, 2.0)
+        gz = random.uniform(-0.5, 0.5)
 
     # 4. SIMULACIÓN DE EMERGENCIA (Cada 120 segundos simula una caída fuerte)
     if tick % 120 == 0:
