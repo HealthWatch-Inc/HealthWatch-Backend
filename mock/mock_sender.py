@@ -1,9 +1,13 @@
+import os
 import sys
 import time
 import json
 import random
 import math
+from dotenv import load_dotenv
 import paho.mqtt.client as mqtt
+
+load_dotenv()
 
 if len(sys.argv) == 3:
     ID_PATIENT = sys.argv[1]
@@ -13,15 +17,19 @@ else:
     ID_DEVICE = "dispositivo_reloj_01"
 
 # Configuración
-BROKER = "localhost"
-PORT = 1883
+BROKER = os.getenv("HIVEMQ_HOST_URL") or "localhost"
+PORT = int(os.getenv("HIVEMQ_PORT") or 1883)
+USERNAME = os.getenv("HIVEMQ_USERNAME") or "user"
+PASSWORD = os.getenv("HIVEMQ_PASSWORD") or "password"
 TOPIC = f"healthwatch/{ID_PATIENT}/{ID_DEVICE}/biometrics"
 
-client = mqtt.Client()
+client = mqtt.Client(client_id=f"mock_sender_{ID_PATIENT}_{ID_DEVICE}")
 
 print("Esperando a que el broker MQTT esté listo...")
 while True:
     try:
+        client.tls_set()
+        client.username_pw_set(USERNAME, PASSWORD)
         client.connect(BROKER, PORT, 60)
         break
     except Exception as e:
@@ -113,4 +121,5 @@ while True:
     }
 
     client.publish(TOPIC, json.dumps(payload))
+    print(f"📤 Publicado: {json.dumps(payload)}")
     time.sleep(1.0) # Envia cada 1 segundo exacto
