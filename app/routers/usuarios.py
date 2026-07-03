@@ -8,19 +8,19 @@ router = APIRouter(
     tags=["Usuarios"]
 )
 
-class FCMTokenUpdate(BaseModel):
-    fcm_token: str
+class ExpoTokenUpdate(BaseModel):
+    expo_token: str
 
-@router.put("/fcm-token")
+@router.put("/expo-token")
 def actualizar_token_celular(
-    datos: FCMTokenUpdate, 
+    datos: ExpoTokenUpdate, 
     usuario_actual = Depends(verificar_token)
 ):
     try:
         uid_cuidador = usuario_actual.get("uid")
         
         db.collection("usuarios").document(uid_cuidador).set({
-            "fcm_token_celular": datos.fcm_token
+            "expo_token": datos.expo_token
         }, merge=True)
         
         return {"mensaje": "Token de notificaciones actualizado correctamente."}
