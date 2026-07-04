@@ -4,11 +4,15 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.core.config import db
 from google.cloud.firestore_v1.base_query import FieldFilter
 from zoneinfo import ZoneInfo
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def revisar_medicamentos_y_notificar():
     zona_peru = ZoneInfo("America/Lima")
     hora_actual = datetime.datetime.now(zona_peru).strftime("%H:%M")
-    print(f"Scheduler => Revisando medicamentos para las: {hora_actual}")
+    logger.info(f"Scheduler => Revisando medicamentos para las: {hora_actual}")
     
     try:
         meds_programados = db.collection_group('medicamentos').where(
@@ -61,6 +65,7 @@ def enviar_notificacion_push(token: str, medicamento: str):
     
     try:
         response = requests.post(url, json=payload, headers=headers)
+        
     except Exception as e:
         print(f"Error al enviar notificación a través de Expo: {e}")
 
