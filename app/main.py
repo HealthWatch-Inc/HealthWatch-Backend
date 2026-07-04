@@ -1,8 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import pacientes, auth
-from app.routers import medicamentos, usuarios, pacientes, auth
 from contextlib import asynccontextmanager
+from app.routers import pacientes, auth, medicamentos, usuarios, actividad_fisica
 from app.services.alertas_ml import scheduler_ml
 from app.services.alertas_caidas import scheduler_caidas
 from app.services.notificaciones_service import scheduler
@@ -28,9 +27,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8081"], # El puerto de tu frontend
+    allow_origins=["http://localhost:8081"],
     allow_credentials=True,
-    allow_methods=["*"], # Esto permite OPTIONS, GET, POST, etc.
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -38,6 +37,7 @@ app.include_router(pacientes.router)
 app.include_router(auth.router)
 app.include_router(medicamentos.router)
 app.include_router(usuarios.router)
+app.include_router(actividad_fisica.router)
 
 # Ruta pública base
 @app.get("/")

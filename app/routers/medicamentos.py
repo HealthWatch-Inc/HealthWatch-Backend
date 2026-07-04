@@ -1,18 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from typing import List
-from app.core.security import verificar_token 
+from app.core.security import verificar_token
+from app.models.medicamento_models import MedicamentoCreate
 from app.services import medicamentos_service
 
 router = APIRouter(
     prefix="/api/medicamentos",
     tags=["Medicamentos"]
 )
-
-class MedicamentoCreate(BaseModel):
-    nombre: str
-    horas: List[str]
-    frecuencia: str
 
 @router.post("/{paciente_id}")
 def agregar_medicamento(
