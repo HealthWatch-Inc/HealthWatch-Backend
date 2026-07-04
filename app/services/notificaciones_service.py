@@ -3,9 +3,11 @@ import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.core.config import db
 from google.cloud.firestore_v1.base_query import FieldFilter
+from zoneinfo import ZoneInfo
 
 def revisar_medicamentos_y_notificar():
-    hora_actual = datetime.datetime.now().strftime("%H:%M")
+    zona_peru = ZoneInfo("America/Lima")
+    hora_actual = datetime.datetime.now(zona_peru).strftime("%H:%M")
     print(f"Scheduler => Revisando medicamentos para las: {hora_actual}")
     
     try:
