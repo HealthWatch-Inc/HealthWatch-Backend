@@ -42,7 +42,7 @@ def obtener_perfil_paciente(paciente_id: str, usuario_actual: dict = Depends(ver
 @router.get("/{paciente_id}/telemetria")
 def obtener_telemetria(
     paciente_id: str, 
-    limite: int = 50, 
+    limite: int = 1, 
     usuario_actual: dict = Depends(verificar_token)
 ):
     uid_cuidador = usuario_actual.get("uid")
