@@ -5,7 +5,7 @@ from app.core.config import INFLUX_HOST, INFLUX_TOKEN, INFLUX_DATABASE
 
 client = InfluxDBClient3(host=INFLUX_HOST, token=INFLUX_TOKEN, database=INFLUX_DATABASE)
 
-def obtener_historial_paciente(paciente_id: str, limite: int = 50) -> list:
+def obtener_historial_paciente(paciente_id: str, limite: int = 1) -> list:
     query = f"""
         SELECT time, heart_rate, spo2, battery, ax, ay, az
         FROM biometrics
