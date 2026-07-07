@@ -42,7 +42,6 @@ def obtener_perfil_paciente(paciente_id: str, usuario_actual: dict = Depends(ver
 @router.get("/{paciente_id}/telemetria")
 def obtener_telemetria(
     paciente_id: str, 
-    limite: int = 1, 
     usuario_actual: dict = Depends(verificar_token)
 ):
     uid_cuidador = usuario_actual.get("uid")
@@ -60,11 +59,10 @@ def obtener_telemetria(
             detail="Acceso denegado. No estás asignado como cuidador de este paciente."
         )
         
-    datos = telemetria_service.obtener_historial_paciente(paciente_id, limite)
+    datos = telemetria_service.obtener_historial_paciente(paciente_id)
     
     return {
         "status": "éxito",
         "paciente_id": paciente_id,
-        "total_registros": len(datos),
         "telemetria": datos
     }
