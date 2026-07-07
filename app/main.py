@@ -2,17 +2,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import medicamentos, usuarios, pacientes, auth, actividad_fisica, contactos
 from contextlib import asynccontextmanager
+from app.routers import pacientes, auth, medicamentos, usuarios, actividad_fisica
+from app.services.alertas_ml import scheduler_ml
+from app.services.alertas_caidas import scheduler_caidas
 from app.services.notificaciones_service import scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Iniciando motor de notificaciones...")
+    print("Iniciando motor de notificaciones (medicamentos)...")
     scheduler.start()
-    
+    print("Iniciando motor de clasificación automática ML (salud)...")
+    scheduler_ml.start()
+    print("Iniciando motor de detección automática de caídas...")
+    scheduler_caidas.start()
     yield
-
-    print("Deteniendo motor de notificaciones...")
+    print("Deteniendo motores...")
     scheduler.shutdown()
+    scheduler_ml.shutdown()
+    scheduler_caidas.shutdown()
 
 app = FastAPI(
     title="HealthWatch-Backend-API",
@@ -21,9 +28,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8081"], # El puerto de tu frontend
+    allow_origins=["http://localhost:8081"],
     allow_credentials=True,
-    allow_methods=["*"], # Esto permite OPTIONS, GET, POST, etc.
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
 from app.core.config import db
 from app.core.security import verificar_token
+from app.models.usuario_models import FCMTokenUpdate
+from pydantic import BaseModel
 
 router = APIRouter(
     prefix="/api/usuarios",

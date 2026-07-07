@@ -1,16 +1,12 @@
-# app/routers/auth.py
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 import requests
+from app.core.config import FIREBASE_WEB_API_KEY
+from app.models.auth_models import LoginRequest
 
 router = APIRouter(
     prefix="/api/auth",
     tags=["Autenticación (Pruebas)"]
-)
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
+) 
 
 FIREBASE_WEB_API_KEY = "AIzaSyBdSZze-ATiqrtZFLpuumGYVA5qXwdhjUU" 
 

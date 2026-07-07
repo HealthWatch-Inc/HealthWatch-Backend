@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from app.models.actividad_models import ObjetivoActividad
 from pydantic import BaseModel
 from app.core.security import verificar_token
 from app.services import actividad_fisica_service
