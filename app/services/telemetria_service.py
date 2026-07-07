@@ -5,13 +5,14 @@ from app.core.config import INFLUX_HOST, INFLUX_TOKEN, INFLUX_DATABASE
 
 client = InfluxDBClient3(host=INFLUX_HOST, token=INFLUX_TOKEN, database=INFLUX_DATABASE)
 
-def obtener_historial_paciente(paciente_id: str, limite: int = 50) -> list:
+def obtener_historial_paciente(paciente_id: str) -> list:
     query = f"""
         SELECT time, heart_rate, spo2, battery, ax, ay, az
         FROM biometrics
         WHERE id_patient = '{paciente_id}'
+          AND time >= now() - INTERVAL '7 days'
         ORDER BY time DESC
-        LIMIT {limite}
+        LIMIT 1
     """
     
     try:

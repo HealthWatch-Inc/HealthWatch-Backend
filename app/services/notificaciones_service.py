@@ -1,14 +1,23 @@
 import datetime
-from firebase_admin import messaging
+import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.core.config import db
+from google.cloud.firestore_v1.base_query import FieldFilter
+from zoneinfo import ZoneInfo
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def revisar_medicamentos_y_notificar():
-    hora_actual = datetime.datetime.now().strftime("%I:%M %p").lower() 
-    print(f"Scheduler => Revisando medicamentos para las: {hora_actual}")
+    zona_peru = ZoneInfo("America/Lima")
+    hora_actual = datetime.datetime.now(zona_peru).strftime("%H:%M")
+    logger.info(f"Scheduler => Revisando medicamentos para las: {hora_actual}")
     
     try:
-        meds_programados = db.collection_group('medicamentos').where('horas', 'array_contains', hora_actual).stream()
+        meds_programados = db.collection_group('medicamentos').where(
+            filter=FieldFilter('horas', 'array_contains', hora_actual)
+        ).stream()
         
         for med in meds_programados:
             datos_med = med.to_dict()
@@ -28,7 +37,7 @@ def revisar_medicamentos_y_notificar():
                     usuario_doc = db.collection('usuarios').document(uid_cuidador).get()
                     
                     if usuario_doc.exists:
-                        token_celular = usuario_doc.to_dict().get("fcm_token_celular")
+                        token_celular = usuario_doc.to_dict().get("expo_token")
 
                         print(f"Token encontrado: {token_celular}")
                         
@@ -39,20 +48,26 @@ def revisar_medicamentos_y_notificar():
         print(f"Error en el motor de revisión: {e}")
 
 def enviar_notificacion_push(token: str, medicamento: str):
-    mensaje = messaging.Message(
-        notification=messaging.Notification(
-            title="Recordatorio de Medicamento",
-            body=f"Es hora de administrar: {medicamento}",
-        ),
-        token=token,
-    )
+    url = "https://exp.host/--/api/v2/push/send"
+    
+    payload = {
+        "to": token,
+        "sound": "default",
+        "title": "Recordatorio de Medicamento",
+        "body": f"Es hora de administrar: {medicamento}"
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip, deflate"
+    }
     
     try:
-        print("Enviando notificación...")
-        # respuesta = messaging.send(mensaje)
-        # print(f"Notificación enviada con éxito: {respuesta}")
+        response = requests.post(url, json=payload, headers=headers)
+        
     except Exception as e:
-        print(f"Error al enviar notificación al token {token}: {e}")
+        print(f"Error al enviar notificación a través de Expo: {e}")
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(revisar_medicamentos_y_notificar, 'interval', minutes=1)

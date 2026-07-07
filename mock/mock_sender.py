@@ -1,9 +1,13 @@
+import os
 import sys
 import time
 import json
 import random
 import math
+from dotenv import load_dotenv
 import paho.mqtt.client as mqtt
+
+load_dotenv()
 
 if len(sys.argv) == 3:
     ID_PATIENT = sys.argv[1]
@@ -12,20 +16,25 @@ else:
     ID_PATIENT = "adulto_mayor_test"
     ID_DEVICE = "dispositivo_reloj_01"
 
-BROKER = "localhost"
-PORT = 1883
+# Configuración
+BROKER = os.getenv("HIVEMQ_HOST_URL") or "localhost"
+PORT = int(os.getenv("HIVEMQ_PORT") or 1883)
+USERNAME = os.getenv("HIVEMQ_USERNAME") or "user"
+PASSWORD = os.getenv("HIVEMQ_PASSWORD") or "password"
 TOPIC = f"healthwatch/{ID_PATIENT}/{ID_DEVICE}/biometrics"
 
-# Callback cuando el cliente se conecta al broker
-def on_connect(client, userdata, flags, rc, properties=None):
-    if rc == 0:
-        print(f"Conectado al broker MQTT en {BROKER}:{PORT}")
-    else:
-        print(f"Fallo de conexión, código de error: {rc}")
+client = mqtt.Client(client_id=f"mock_sender_{ID_PATIENT}_{ID_DEVICE}")
 
-# Crear el cliente MQTT con la nueva API
-client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-client.on_connect = on_connect
+print("Esperando a que el broker MQTT esté listo...")
+while True:
+    try:
+        client.tls_set()
+        client.username_pw_set(USERNAME, PASSWORD)
+        client.connect(BROKER, PORT, 60)
+        break
+    except Exception as e:
+        print(f"Broker no disponible: {e}")
+        time.sleep(2)
 
 print("Intentando conectar al broker MQTT...")
 client.connect(BROKER, PORT, 60)
@@ -51,6 +60,9 @@ while True:
     if tick % 60 == 0 and battery > 1:
         battery -= 1
 
+    # 3. Simulación de Movimiento de Muñeca Fisiológico (Ruido base en reposo/caminata leve)
+    # Usamos senos/cosenos para que el acelerómetro dibuje ondas en Grafana
+    """
     ax = 0.1 * math.sin(tick * 0.5) + random.uniform(-0.05, 0.05)
     ay = 0.2 * math.cos(tick * 0.3) + random.uniform(-0.05, 0.05)
     az = 9.81 + random.uniform(-0.1, 0.1)
@@ -58,6 +70,29 @@ while True:
     gx = 0.02 * math.sin(tick * 0.2)
     gy = 0.01 * math.cos(tick * 0.4)
     gz = random.uniform(-0.01, 0.01)
+    """
+
+    es_paso = tick % 2 == 0 # Simula el impacto de un paso cada 2 segundos
+    
+    if es_paso:
+        # El impacto del talón genera una desaceleración/aceleración vertical fuerte (Eje Z y Y)
+        ax = random.uniform(-1.0, 1.0)
+        ay = random.uniform(1.5, 3.5)   # Empuje hacia adelante
+        az = 9.81 + random.uniform(2.0, 4.5) # Impacto vertical contra el suelo
+        
+        # El movimiento del brazo balanceándose genera rotación real en el giroscopio
+        gx = random.uniform(15.0, 25.0) 
+        gy = random.uniform(10.0, 20.0)
+        gz = random.uniform(-5.0, 5.0)
+    else:
+        # Estado de balanceo suave entre pasos (reposo relativo en movimiento)
+        ax = 0.1 * math.sin(tick * 0.5) + random.uniform(-0.1, 0.1)
+        ay = 0.2 * math.cos(tick * 0.3) + random.uniform(-0.1, 0.1)
+        az = 9.81 + random.uniform(-0.3, 0.3)
+        
+        gx = random.uniform(0.5, 2.0)
+        gy = random.uniform(0.5, 2.0)
+        gz = random.uniform(-0.5, 0.5)
 
     # Cada 120 ticks simula una caída
     if tick % 120 == 0:
@@ -83,11 +118,6 @@ while True:
         "battery": int(battery)
     }
 
-    # Publicar el mensaje
-    result = client.publish(TOPIC, json.dumps(payload))
-    if result.rc == mqtt.MQTT_ERR_SUCCESS:
-        print(f"Datos transmitidos exitosamente a tópico: {TOPIC}")
-    else:
-        print(f"Error al publicar: {result.rc}")
-
-    time.sleep(1.0)
+    client.publish(TOPIC, json.dumps(payload))
+    print(f"📤 Publicado: {json.dumps(payload)}")
+    time.sleep(1.0) # Envia cada 1 segundo exacto
