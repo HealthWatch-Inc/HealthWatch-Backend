@@ -8,6 +8,8 @@ router = APIRouter(
     tags=["Autenticación (Pruebas)"]
 ) 
 
+FIREBASE_WEB_API_KEY = "AIzaSyBdSZze-ATiqrtZFLpuumGYVA5qXwdhjUU" 
+
 @router.post("/login-prueba")
 def simular_login_frontend(credenciales: LoginRequest):
     """
