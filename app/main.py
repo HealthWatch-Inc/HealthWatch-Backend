@@ -6,6 +6,13 @@ from app.routers import pacientes, auth, medicamentos, usuarios, actividad_fisic
 from app.services.alertas_ml import scheduler_ml
 from app.services.alertas_caidas import scheduler_caidas
 from app.services.notificaciones_service import scheduler
+import logging
+import warnings
+
+# logs
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
+logging.getLogger('apscheduler.executors.default').setLevel(logging.WARNING)
+logging.getLogger('apscheduler.scheduler').setLevel(logging.WARNING)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

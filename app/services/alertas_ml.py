@@ -38,7 +38,7 @@ def enviar_notificacion(token: str, paciente_nombre: str, clasificacion: str):
         print(f"Error enviando a {token}: {e}")
 
 def revisar_todos_pacientes():
-    print(f"[{datetime.datetime.now()}] Ejecutando clasificación automática ML...")
+    print(f"\n[Modelo de salud (Corazón)] [{datetime.datetime.now().strftime('%H:%M:%S')}] Iniciando evaluación...")
     pacientes_ref = db.collection("pacientes").stream()
     
     for doc in pacientes_ref:
@@ -54,12 +54,15 @@ def revisar_todos_pacientes():
         hr_vals = [p['heart_rate'] for p in ventana]
         spo2_vals = [p['spo2'] for p in ventana]
         temp_vals = [p['temp'] for p in ventana]
-        categoria, _ = predecir_ventana(hr_vals, spo2_vals, temp_vals)
         
-        # Guardar última clasificación en Firestore
+        categoria, probabilidades = predecir_ventana(hr_vals, spo2_vals, temp_vals)
+        
+        # LOG DETALLADO
+        print(f"  -> Paciente: {nombre} -> Resultado: [{categoria.upper()}]")
+        print(f"     Probabilidades -> Okay: {probabilidades['okay']:.2f} | Warning: {probabilidades['warning']:.2f} | Bad: {probabilidades['bad']:.2f}")
+        
         doc.reference.set({"ultima_clasificacion": categoria, "ultima_actualizacion_ml": datetime.datetime.now().isoformat()}, merge=True)
         
-        # Notificar si es warning o bad, con cooldown de 5 minutos
         if categoria in ["warning", "bad"]:
             ahora = datetime.datetime.now()
             clave = f"{paciente_id}_{categoria}"
@@ -68,7 +71,6 @@ def revisar_todos_pacientes():
                 for uid in cuidadores:
                     user_doc = db.collection("usuarios").document(uid).get()
                     if user_doc.exists:
-                        # ¡CORRECCIÓN AQUÍ! Buscamos 'expo_token' en lugar de 'fcm_token_celular'
                         token = user_doc.to_dict().get("expo_token")
                         if token:
                             enviar_notificacion(token, nombre, categoria)

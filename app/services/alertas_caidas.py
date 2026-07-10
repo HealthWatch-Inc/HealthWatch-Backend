@@ -32,7 +32,7 @@ def enviar_notificacion_caida(token: str, paciente_nombre: str, probabilidad: fl
         print(f"Error enviando notificación de caída a {token}: {e}")
 
 def revisar_caidas_todos_pacientes():
-    print(f"[{datetime.datetime.now()}] Ejecutando detección automática de caídas...")
+    print(f"\n[Modelo de caídas] [{datetime.datetime.now().strftime('%H:%M:%S')}] Iniciando evaluación...")
     pacientes_ref = db.collection("pacientes").stream()
     
     for doc in pacientes_ref:
@@ -54,10 +54,11 @@ def revisar_caidas_todos_pacientes():
         
         prob, es_caida = predecir_caida(ax_vals, ay_vals, az_vals, gx_vals, gy_vals, gz_vals)
         
-        # Guardar última predicción en Firestore
+        # LOG DETALLADO CRÍTICO
+        print(f"  -> Paciente: {nombre} -> Probabilidad de Caída: {prob:.2%} | Clasificación: {'CAÍDA' if es_caida else 'NORMAL'}")
+        
         doc.reference.set({"ultima_probabilidad_caida": prob, "ultima_deteccion_caida": es_caida, "ultima_actualizacion_caida": datetime.datetime.now().isoformat()}, merge=True)
         
-        # Notificar si es caída, con cooldown de 5 minutos
         if es_caida:
             ahora = datetime.datetime.now()
             if paciente_id not in ultima_alerta_caida or (ahora - ultima_alerta_caida[paciente_id]).seconds > 300:
@@ -65,7 +66,6 @@ def revisar_caidas_todos_pacientes():
                 for uid in cuidadores:
                     user_doc = db.collection("usuarios").document(uid).get()
                     if user_doc.exists:
-                        # ¡CORRECCIÓN AQUÍ! Buscamos 'expo_token'
                         token = user_doc.to_dict().get("expo_token")
                         if token:
                             enviar_notificacion_caida(token, nombre, prob)
