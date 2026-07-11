@@ -10,15 +10,14 @@ El proyecto utiliza una arquitectura de microservicios y bases de datos especial
 
 * **Aplicación Móvil (React Native):**
     * Comunicación directa con Firebase para Login y Registro.
-    * Suscripción en tiempo real a la colección de Alertas (Firestore).
 * **Backend (Python / FastAPI):**
     * Actúa como capa de seguridad (validación de tokens JWT de Firebase).
     * Sirve el historial de telemetría extrayendo datos de InfluxDB.
     * Utiliza `APScheduler` para ejecutar revisiones periódicas en segundo plano (ej. recordatorios de medicinas).
-    * Integración con Firebase Cloud Messaging (FCM) para enviar alertas en tiempo real a los dispositivos móviles.
-    * Preparado para futuras implementaciones de Machine Learning (ML).
+    * Integración con la API de Expo Push Notifications para enviar alertas en tiempo real a los dispositivos móviles.
+    * Ejecución de modelos de Machine Learning (LSTM) integrados nativamente para inferencia en tiempo real (clasificación de salud cardíaca y detección de caídas).
 * **Infraestructura IoT (Docker):**
-    * **Mosquitto:** Broker MQTT que recibe los latidos del reloj ESP32.
+    * **HiveMQ:** Broker MQTT escalable que recibe y enruta la telemetría del reloj ESP32.
     * **Telegraf:** Agente de ingesta que traduce los datos de MQTT y los inserta en InfluxDB.
     * **InfluxDB v3:** Base de datos de series temporales de alto rendimiento.
 
@@ -29,7 +28,7 @@ El proyecto utiliza una arquitectura de microservicios y bases de datos especial
 * **Python:** Versión 3.10 o superior (Desarrollado en entorno Python 3.14.5).
 * **Docker Desktop:** Con integración WSL 2 (si se ejecuta en Windows).
 * **Credenciales:** Archivo `firebase-credentials.json` en la raíz del proyecto.
-* **Entorno:** Archivo `.env` con las variables de InfluxDB (`INFLUXDB3_AUTH_TOKEN`, `INFLUXDB3_DATABASE_NAME`).
+* **Entorno:** Archivo `.env` con las variables de InfluxDB (`INFLUXDB3_HOST_URL`, `INFLUXDB3_DATABASE_NAME`, `INFLUXDB3_AUTH_TOKEN`) y las de HiveMQ (`HIVEMQ_HOST_URL`, `HIVEMQ_PORT`, `HIVEMQ_USERNAME`, `HIVEMQ_PASSWORD`).
 
 ### Dependencias del Entorno (requirements.txt)
 
@@ -60,22 +59,39 @@ El sistema utiliza un enfoque híbrido, separando los datos relacionales/estáti
 
 * **Colección Principal: usuarios** (Cuidadores y Familiares)
     * ID de Documento: UID proporcionado por Firebase Auth.
-    * nombre: String (ej. "Juan Perez")
+    * nombre_completo: String (ej. "Juan Perez")
     * rol: String ("cuidador" o "familiar")
-    * fcm_token_celular: String (Token del dispositivo físico para recibir notificaciones Push de Google).
+    * telefono: String (ej. "987654321")
+    * expo_token: String (Token físico para recibir notificaciones Push vía Expo).
 
 * **Colección Principal: pacientes** (Adultos Mayores)
-    * ID de Documento: Identificador único del paciente (ej. "paciente_01").
-    * nombre_completo: String (ej. "Arturo Gomez")
-    * id_reloj_esp32: String (MAC o ID del hardware, ej. "esp_mac_001")
-    * bateria_actual: Number (Último % de batería registrado)
-    * contactos_emergencia: Array de Objetos (nombres y teléfonos)
-    * cuidadores_asignados: Array de Strings (Contiene los UIDs de los usuarios autorizados, ej. ["UID_1", "UID_2"])
+    * ID de Documento: Identificador único del paciente (ej. "paciente_autorizado_1").
+    * nombre_completo: String (ej. "Ana María Gómez")
+    * edad: Number (ej. 74)
+    * bateria_actual: Number (Último % de batería registrado del reloj)
+    * cuidadores_asignados: Array de Strings (Contiene los UIDs de los usuarios autorizados)
+    * **Campos de Machine Learning (Actualizados en segundo plano):**
+        * ultima_clasificacion: String ("okay", "warning", "bad")
+        * ultima_actualizacion_ml: String (Timestamp ISO)
+        * ultima_probabilidad_caida: Number (Float, ej. 0.3221)
+        * ultima_deteccion_caida: Boolean (true/false)
+        * ultima_actualizacion_caida: String (Timestamp ISO)
+        
+    * **Sub-colección: contactos** (Red de emergencia)
+        * ID de Documento: String (Autogenerado)
+        * name: String (ej. "Antonio Banderas")
+        * phone: String (ej. "970464752")
+        * relation: String (ej. "Primo")
+
     * **Sub-colección: medicamentos** (Sistema de recordatorios)
-        * ID de Documento: String (Autogenerado por Firestore)
+        * ID de Documento: String (Autogenerado)
         * nombre: String (ej. "Losartán")
-        * horas: Array de Strings (Formato "%I:%M %p", ej. ["08:00 am", "08:00 pm"])
+        * horas: Array de Strings (Formato 24h "%H:%M", ej. ["08:00", "20:00"])
         * frecuencia: String (ej. "Diario")
+        
+    * **Sub-colección: objetivos** (Metas físicas)
+        * ID de Documento: String (ej. "actividad_fisica")
+        * pasos_diarios: Number (ej. 5000)
 
 ### 2. InfluxDB v3 (Datos de Telemetría)
 
@@ -134,17 +150,42 @@ FastAPI genera automáticamente documentación interactiva basada en OpenAPI. Un
 
 👉 http://127.0.0.1:8000/docs
 
-### Endpoints Principales:
+### Endpoints:
 
-* `POST /api/auth/login-prueba`: Genera un token JWT simulado para pruebas de desarrollo mediante peticiones a Google Identity Toolkit.
-* `GET /api/pacientes/`: Lista los pacientes asignados al cuidador autenticado.
-* `GET /api/pacientes/{paciente_id}`: Obtiene el perfil estático de un paciente específico desde Firestore, validando que el cuidador esté asignado.
-* `GET /api/pacientes/{paciente_id}/telemetria`: Cruza la validación de seguridad de Firestore y extrae el historial biométrico reciente del paciente desde InfluxDB usando SQL estándar.
+* **Módulo de usuarios:**
 
-* **Usuarios y Notificaciones:**
+    * `GET /api/usuarios/me`: Retorna el perfil (nombre, rol, teléfono) del usuario autenticado cruzando datos de Auth y Firestore.  
+    * `PUT /api/usuarios/telefono`: Actualiza el número telefónico del perfil actual.  
+    * `PUT /api/usuarios/expo-token`: Guarda o actualiza el token de Expo para el envío de notificaciones push.  
     * `PUT /api/usuarios/fcm-token`: Registra o actualiza el FCM Token del dispositivo móvil del cuidador autenticado para habilitar alertas Push.
-* **Gestión de Medicamentos:**
+
+* **Módulo de pacientes:**
+
+    * `GET /api/pacientes/`: Lista todos los pacientes asignados al cuidador autenticado.  
+    * `GET /api/pacientes/{paciente_id}`: Obtiene el perfil base de un paciente verificando permisos de acceso.  
+    * `GET /api/pacientes/{paciente_id}/telemetria`: Extrae el historial reciente de signos vitales (InfluxDB).  
+
+* **Módulo de medicamentos:**
+
     * `POST /api/medicamentos/{paciente_id}`: Crea un nuevo recordatorio de medicamento para un paciente.
     * `GET /api/medicamentos/{paciente_id}`: Lista todos los medicamentos programados del paciente.
     * `PUT /api/medicamentos/{paciente_id}/{medicamento_id}`: Modifica los datos (horas, nombre, frecuencia) de un medicamento existente.
     * `DELETE /api/medicamentos/{paciente_id}/{medicamento_id}`: Realiza el borrado físico de un recordatorio de medicamento.
+
+
+* **Módulo de contactos:**
+
+    * `POST /api/contactos/{paciente_id}`: Añade un contacto de emergencia (nombre, teléfono, relación). 
+    * `GET /api/contactos/{paciente_id}`: Lista los contactos de emergencia disponibles.  
+    * `PUT /api/contactos/{paciente_id}/{contacto_id}`: Edita la información de un contacto.  
+    * `DELETE /api/contactos/{paciente_id}/{contacto_id}`: Elimina un contacto de la lista. 
+
+* **Módulo de actividad física:**
+
+    * `PUT /api/actividad-fisica/{paciente_id}`: Actualiza o establece el objetivo diario de pasos.  
+    * `GET /api/actividad-fisica/{paciente_id}`: Consulta la meta actual de pasos del paciente.  
+    * `DELETE /api/actividad-fisica/{paciente_id}`: Remueve el objetivo físico configurado.
+
+* **Módulo de autenticación:** 
+
+    * `POST /api/auth/login-prueba`: Simulador de login que devuelve un token JWT válido para realizar pruebas manuales en Swagger sin necesidad de la app móvil.  
