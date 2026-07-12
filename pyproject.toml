@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "healthwatch-backend"
+version = "1.0.0"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "unit: Unit tests (no external dependencies, fully hermetic)",
+    "integration: Integration tests (mocked external services)",
+    "slow: Tests that take more than 1 second",
+]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/models/modulo_a/*",
+    "app/models/modulo_b/*",
+    "app/__init__*",
+    "app/core/__init__*",
+    "app/models/__init__*",
+    "app/routers/__init__*",
+    "app/services/__init__*",
+]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+]
