@@ -1,0 +1,193 @@
+{
+  "modulo_a_n8n": {
+    "endpoint": "POST /api/ml/modulo-a/prediccion/n8n",
+    "descripcion": "Predicción de clasificación de salud con datos biométricos de n8n",
+    "request": {
+      "datos": [
+        {
+          "id_patient": "adulto_mayor_test",
+          "id_device": "dispositivo_reloj_01",
+          "ax": 0.053,
+          "ay": 0.193,
+          "az": 9.872,
+          "gx": 0.004,
+          "gy": 0.0092,
+          "gz": 0.0062,
+          "tenp": 36.2,
+          "heart_rate": 71.5,
+          "spo2": 99,
+          "rss1": -63,
+          "battery": 100
+        },
+        {
+          "id_patient": "adulto_mayor_test",
+          "id_device": "dispositivo_reloj_01",
+          "ax": 0.054,
+          "ay": 0.194,
+          "az": 9.871,
+          "gx": 0.005,
+          "gy": 0.0093,
+          "gz": 0.0063,
+          "tenp": 36.3,
+          "heart_rate": 72.0,
+          "spo2": 98,
+          "rss1": -63,
+          "battery": 100
+        },
+        {
+          "id_patient": "adulto_mayor_test",
+          "id_device": "dispositivo_reloj_01",
+          "ax": 0.052,
+          "ay": 0.192,
+          "az": 9.873,
+          "gx": 0.003,
+          "gy": 0.0091,
+          "gz": 0.0061,
+          "tenp": 36.2,
+          "heart_rate": 71.8,
+          "spo2": 99,
+          "rss1": -63,
+          "battery": 100
+        }
+      ]
+    },
+    "nota": "Este ejemplo tiene solo 3 lecturas. En producción, n8n acumulará 30 lecturas antes de enviar.",
+    "response_esperada": {
+      "status": "éxito",
+      "modulo": "A",
+      "paciente_id": "adulto_mayor_test",
+      "dispositivo_id": "dispositivo_reloj_01",
+      "clasificacion": "okay",
+      "probabilidades": {
+        "okay": 0.85,
+        "warning": 0.12,
+        "bad": 0.03
+      },
+      "datos_procesados": 3
+    },
+    "flujo_n8n_recomendado": {
+      "paso_1": "Nodo MQTT: Recibir datos del dispositivo con formato biométrico",
+      "paso_2": "Nodo JavaScript: Acumular datos en un array (guardar últimas 30 lecturas)",
+      "paso_3": "Condición: Si array.length >= 30",
+      "paso_4": "Nodo HTTP Request: POST a /api/ml/modulo-a/prediccion/n8n",
+      "paso_5": "Guardar resultado en Firestore o enviar notificación"
+    }
+  },
+  "modulo_b_n8n": {
+    "endpoint": "POST /api/ml/modulo-b/prediccion/n8n",
+    "descripcion": "Predicción de detección de caídas con datos IMU de n8n",
+    "request": {
+      "datos": [
+        {
+          "id_patient": "adulto_mayor_test",
+          "id_device": "dispositivo_reloj_01",
+          "ax": 0.053,
+          "ay": 0.193,
+          "az": 9.872,
+          "gx": 0.004,
+          "gy": 0.0092,
+          "gz": 0.0062,
+          "tenp": 36.2,
+          "heart_rate": 71.5,
+          "spo2": 99,
+          "rss1": -63,
+          "battery": 100
+        },
+        {
+          "id_patient": "adulto_mayor_test",
+          "id_device": "dispositivo_reloj_01",
+          "ax": 0.154,
+          "ay": 0.594,
+          "az": 8.871,
+          "gx": 0.105,
+          "gy": 0.1093,
+          "gz": 0.1063,
+          "tenp": 36.3,
+          "heart_rate": 85.0,
+          "spo2": 97,
+          "rss1": -63,
+          "battery": 100
+        },
+        {
+          "id_patient": "adulto_mayor_test",
+          "id_device": "dispositivo_reloj_01",
+          "ax": 0.252,
+          "ay": 0.992,
+          "az": 7.873,
+          "gx": 0.203,
+          "gy": 0.2091,
+          "gz": 0.2061,
+          "tenp": 36.4,
+          "heart_rate": 95.0,
+          "spo2": 96,
+          "rss1": -63,
+          "battery": 100
+        }
+      ]
+    },
+    "nota": "Este ejemplo tiene solo 3 lecturas. En producción, n8n acumulará 20 lecturas antes de enviar.",
+    "response_esperada": {
+      "status": "éxito",
+      "modulo": "B",
+      "paciente_id": "adulto_mayor_test",
+      "dispositivo_id": "dispositivo_reloj_01",
+      "probabilidad_caida": 0.15,
+      "es_caida": false,
+      "datos_procesados": 3
+    },
+    "flujo_n8n_recomendado": {
+      "paso_1": "Nodo MQTT: Recibir datos del dispositivo con formato IMU",
+      "paso_2": "Nodo JavaScript: Acumular datos en un array (guardar últimas 20 lecturas)",
+      "paso_3": "Condición: Si array.length >= 20",
+      "paso_4": "Nodo HTTP Request: POST a /api/ml/modulo-b/prediccion/n8n",
+      "paso_5": "Si es_caida == true: Enviar alerta urgente"
+    }
+  },
+  "casos_prueba_modulo_a": [
+    {
+      "nombre": "Caso 1: Salud normal (30 lecturas)",
+      "description": "HR estable ~72 BPM, SpO2 98%, Temp 36.5°C",
+      "cantidad_datos": 30,
+      "patron_hr": "72-74 BPM (estable)",
+      "patron_spo2": "97-99% (normal)",
+      "patron_temp": "36.5-36.7°C (normal)",
+      "clasificacion_esperada": "okay"
+    },
+    {
+      "nombre": "Caso 2: Estrés leve (30 lecturas)",
+      "description": "HR elevado 90-110 BPM, SpO2 bajo 92-95%, Temp elevada 37.2-37.8°C",
+      "cantidad_datos": 30,
+      "patron_hr": "90-110 BPM (elevado)",
+      "patron_spo2": "92-95% (bajo)",
+      "patron_temp": "37.2-37.8°C (elevada)",
+      "clasificacion_esperada": "warning"
+    },
+    {
+      "nombre": "Caso 3: Crisis (30 lecturas)",
+      "description": "HR crítico 130+ BPM, SpO2 muy bajo 85%, Temp muy elevada 38.5°C",
+      "cantidad_datos": 30,
+      "patron_hr": "130-180 BPM (crítico)",
+      "patron_spo2": "85-90% (muy bajo)",
+      "patron_temp": "38.5-41.4°C (muy elevada)",
+      "clasificacion_esperada": "bad"
+    }
+  ],
+  "casos_prueba_modulo_b": [
+    {
+      "nombre": "Caso 1: Sin caída (20 lecturas)",
+      "description": "Movimiento normal, aceleración baja, giroscopio mínimo",
+      "cantidad_datos": 20,
+      "patron_accel": "0.05-0.1 m/s²",
+      "patron_gyro": "0.01 rad/s",
+      "es_caida_esperada": false
+    },
+    {
+      "nombre": "Caso 2: Caída detectada (20 lecturas)",
+      "description": "Cambios rápidos en aceleración y rotación, gran variabilidad",
+      "cantidad_datos": 20,
+      "patron_accel": "0.1-12 m/s² (variable)",
+      "patron_gyro": "0.01-4.2 rad/s (variable)",
+      "es_caida_esperada": true
+    }
+  ]
+}

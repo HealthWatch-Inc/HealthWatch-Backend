@@ -1,47 +1,112 @@
 # Endpoints ML para n8n - HealthWatch
 
 ## Descripción General
-Los nuevos endpoints están diseñados para que n8n pueda enviar datos directamente a los modelos ML sin necesidad de autenticación, permitiendo predicciones en tiempo real.
+Los nuevos endpoints están diseñados para que n8n pueda enviar datos directamente del formato MQTT/biométrico del dispositivo a los modelos ML, sin necesidad de transformación previa. Los endpoints extraen automáticamente los campos necesarios y acumulan los datos para hacer las predicciones.
 
 ---
 
-## Módulo A: Clasificación de Salud
+## Formato de datos que envía n8n
+
+Cada lectura desde el dispositivo llega en este formato:
+```json
+{
+    "id_patient": "adulto_mayor_test",
+    "id_device": "dispositivo_reloj_01",
+    "ax": 0.053,
+    "ay": 0.193,
+    "az": 9.872,
+    "gx": 0.004,
+    "gy": 0.0092,
+    "gz": 0.0062,
+    "tenp": 36.2,
+    "heart_rate": 71.5,
+    "spo2": 99,
+    "rss1": -63,
+    "battery": 100
+}
+```
+
+---
+
+## Módulo A: Clasificación de Salud (desde n8n)
 
 ### Endpoint
 ```
-POST /api/ml/modulo-a/prediccion
+POST /api/ml/modulo-a/prediccion/n8n
 ```
 
 ### Descripción
-Predice la clasificación de salud (estrés/fatiga) basada en datos biométricos: frecuencia cardíaca, saturación de oxígeno y temperatura corporal.
+Predice la clasificación de salud (estrés/fatiga) basada en datos biométricos enviados por n8n. Acepta un array de lecturas y procesa automáticamente los últimos 30 valores.
 
 ### Request Body (JSON)
 ```json
 {
-    "hr_vals": [72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101],
-    "spo2_vals": [98, 98, 98, 97, 97, 97, 96, 96, 96, 95, 95, 95, 94, 94, 94, 93, 93, 93, 92, 92, 92, 91, 91, 91, 90, 90, 90, 89, 89, 89],
-    "temp_vals": [36.5, 36.5, 36.6, 36.6, 36.7, 36.7, 36.8, 36.8, 36.9, 36.9, 37.0, 37.0, 37.1, 37.1, 37.2, 37.2, 37.3, 37.3, 37.4, 37.4, 37.5, 37.5, 37.6, 37.6, 37.7, 37.7, 37.8, 37.8, 37.9, 37.9]
+    "datos": [
+        {
+            "id_patient": "adulto_mayor_test",
+            "id_device": "dispositivo_reloj_01",
+            "heart_rate": 71.5,
+            "spo2": 99,
+            "tenp": 36.2,
+            "ax": 0.053,
+            "ay": 0.193,
+            "az": 9.872,
+            "gx": 0.004,
+            "gy": 0.0092,
+            "gz": 0.0062,
+            "rss1": -63,
+            "battery": 100
+        },
+        {
+            "id_patient": "adulto_mayor_test",
+            "id_device": "dispositivo_reloj_01",
+            "heart_rate": 72.1,
+            "spo2": 98,
+            "tenp": 36.3,
+            "ax": 0.054,
+            "ay": 0.194,
+            "az": 9.871,
+            "gx": 0.005,
+            "gy": 0.0093,
+            "gz": 0.0063,
+            "rss1": -63,
+            "battery": 100
+        }
+    ]
 }
 ```
 
 ### Parámetros
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|----------|-------------|
-| `hr_vals` | Array[float] | ✅ | **Exactamente 30 valores** de frecuencia cardíaca (BPM) |
-| `spo2_vals` | Array[float] | ✅ | **Exactamente 30 valores** de saturación de oxígeno (%) |
-| `temp_vals` | Array[float] | ✅ | **Exactamente 30 valores** de temperatura corporal (°C) |
+| `datos` | Array[BiometricData] | ✅ | Array de datos biométricos (se usan los últimos 30) |
+
+**Campos de BiometricData:**
+| Campo | Tipo | Requerido para Módulo A | Descripción |
+|-------|------|--------|-------------|
+| `id_patient` | string | ✅ | ID del paciente |
+| `id_device` | string | ✅ | ID del dispositivo |
+| `heart_rate` | float | ✅ | Frecuencia cardíaca (BPM) |
+| `spo2` | float | ✅ | Saturación de oxígeno (%) |
+| `tenp` | float | ✅ | Temperatura corporal (°C) - NOTA: viene con typo en el nombre |
+| `ax`, `ay`, `az` | float | ❌ | Aceleración (no necesaria para Módulo A) |
+| `gx`, `gy`, `gz` | float | ❌ | Velocidad angular (no necesaria para Módulo A) |
+| `rss1`, `battery` | float | ❌ | Información del dispositivo (opcional) |
 
 ### Response (200 OK)
 ```json
 {
     "status": "éxito",
     "modulo": "A",
+    "paciente_id": "adulto_mayor_test",
+    "dispositivo_id": "dispositivo_reloj_01",
     "clasificacion": "okay",
     "probabilidades": {
         "okay": 0.85,
         "warning": 0.12,
         "bad": 0.03
-    }
+    },
+    "datos_procesados": 30
 }
 ```
 
@@ -53,61 +118,103 @@ Predice la clasificación de salud (estrés/fatiga) basada en datos biométricos
 ### Códigos de error
 | Código | Descripción |
 |--------|-------------|
-| 400 | Número incorrecto de valores en alguna lista (debe ser exactamente 30) |
+| 400 | Menos de 30 lecturas o campos obligatorios faltantes |
 | 500 | Error al ejecutar el modelo |
 
 ### Ejemplo en n8n (HTTP Request)
 ```
-URL: POST http://localhost:8000/api/ml/modulo-a/prediccion
-Body (JSON):
+URL: POST http://localhost:8000/api/ml/modulo-a/prediccion/n8n
+
+Body (tipo: JSON):
 {
-    "hr_vals": {{ $node["nombreDelNodoAnterior"].json.heartRateArray }},
-    "spo2_vals": {{ $node["nombreDelNodoAnterior"].json.spo2Array }},
-    "temp_vals": {{ $node["nombreDelNodoAnterior"].json.tempArray }}
+    "datos": {{ $node["nodeAnterior"].json }}
+}
+
+// Si el nodo anterior devuelve un array de lecturas:
+{
+    "datos": {{ $node["nodeAnterior"].json.biometricReadings }}
 }
 ```
 
 ---
 
-## Módulo B: Detección de Caídas
+## Módulo B: Detección de Caídas (desde n8n)
 
 ### Endpoint
 ```
-POST /api/ml/modulo-b/prediccion
+POST /api/ml/modulo-b/prediccion/n8n
 ```
 
 ### Descripción
-Predice la probabilidad de caída basada en datos del acelerómetro y giroscopio (IMU).
+Predice la probabilidad de caída basada en datos IMU enviados por n8n. Acepta un array de lecturas y procesa automáticamente los últimos 20 valores.
 
 ### Request Body (JSON)
 ```json
 {
-    "ax_vals": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0],
-    "ay_vals": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0],
-    "az_vals": [9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8, 9.8],
-    "gx_vals": [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2],
-    "gy_vals": [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2],
-    "gz_vals": [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.2]
+    "datos": [
+        {
+            "id_patient": "adulto_mayor_test",
+            "id_device": "dispositivo_reloj_01",
+            "heart_rate": 71.5,
+            "spo2": 99,
+            "tenp": 36.2,
+            "ax": 0.053,
+            "ay": 0.193,
+            "az": 9.872,
+            "gx": 0.004,
+            "gy": 0.0092,
+            "gz": 0.0062,
+            "rss1": -63,
+            "battery": 100
+        },
+        {
+            "id_patient": "adulto_mayor_test",
+            "id_device": "dispositivo_reloj_01",
+            "heart_rate": 72.1,
+            "spo2": 98,
+            "tenp": 36.3,
+            "ax": 0.054,
+            "ay": 0.194,
+            "az": 9.871,
+            "gx": 0.005,
+            "gy": 0.0093,
+            "gz": 0.0063,
+            "rss1": -63,
+            "battery": 100
+        }
+    ]
 }
 ```
 
 ### Parámetros
 | Parámetro | Tipo | Requerido | Descripción |
 |-----------|------|----------|-------------|
-| `ax_vals` | Array[float] | ✅ | **Exactamente 20 valores** de aceleración en eje X (m/s²) |
-| `ay_vals` | Array[float] | ✅ | **Exactamente 20 valores** de aceleración en eje Y (m/s²) |
-| `az_vals` | Array[float] | ✅ | **Exactamente 20 valores** de aceleración en eje Z (m/s²) |
-| `gx_vals` | Array[float] | ✅ | **Exactamente 20 valores** de velocidad angular en eje X (rad/s) |
-| `gy_vals` | Array[float] | ✅ | **Exactamente 20 valores** de velocidad angular en eje Y (rad/s) |
-| `gz_vals` | Array[float] | ✅ | **Exactamente 20 valores** de velocidad angular en eje Z (rad/s) |
+| `datos` | Array[BiometricData] | ✅ | Array de datos IMU (se usan los últimos 20) |
+
+**Campos de BiometricData (relevantes para Módulo B):**
+| Campo | Tipo | Requerido para Módulo B | Descripción |
+|-------|------|--------|-------------|
+| `id_patient` | string | ✅ | ID del paciente |
+| `id_device` | string | ✅ | ID del dispositivo |
+| `ax` | float | ✅ | Aceleración en eje X (m/s²) |
+| `ay` | float | ✅ | Aceleración en eje Y (m/s²) |
+| `az` | float | ✅ | Aceleración en eje Z (m/s²) |
+| `gx` | float | ✅ | Velocidad angular en eje X (rad/s) |
+| `gy` | float | ✅ | Velocidad angular en eje Y (rad/s) |
+| `gz` | float | ✅ | Velocidad angular en eje Z (rad/s) |
+| `heart_rate`, `spo2`, `tenp` | float | ❌ | Biométricos (no necesarios para Módulo B) |
+| `rss1`, `battery` | float | ❌ | Información del dispositivo (opcional) |
 
 ### Response (200 OK)
 ```json
 {
     "status": "éxito",
     "modulo": "B",
+    "paciente_id": "adulto_mayor_test",
+    "dispositivo_id": "dispositivo_reloj_01",
     "probabilidad_caida": 0.15,
-    "es_caida": false
+    "es_caida": false,
+    "datos_procesados": 20
 }
 ```
 
@@ -121,20 +228,56 @@ Predice la probabilidad de caída basada en datos del acelerómetro y giroscopio
 ### Códigos de error
 | Código | Descripción |
 |--------|-------------|
-| 400 | Número incorrecto de valores en alguna lista (debe ser exactamente 20) |
+| 400 | Menos de 20 lecturas o campos IMU obligatorios faltantes |
 | 500 | Error al ejecutar el modelo |
 
 ### Ejemplo en n8n (HTTP Request)
 ```
-URL: POST http://localhost:8000/api/ml/modulo-b/prediccion
-Body (JSON):
+URL: POST http://localhost:8000/api/ml/modulo-b/prediccion/n8n
+
+Body (tipo: JSON):
 {
-    "ax_vals": {{ $node["nombreDelNodoAnterior"].json.accelX }},
-    "ay_vals": {{ $node["nombreDelNodoAnterior"].json.accelY }},
-    "az_vals": {{ $node["nombreDelNodoAnterior"].json.accelZ }},
-    "gx_vals": {{ $node["nombreDelNodoAnterior"].json.gyroX }},
-    "gy_vals": {{ $node["nombreDelNodoAnterior"].json.gyroY }},
-    "gz_vals": {{ $node["nombreDelNodoAnterior"].json.gyroZ }}
+    "datos": {{ $node["nodeAnterior"].json }}
+}
+
+// Si el nodo anterior devuelve un array de lecturas:
+{
+    "datos": {{ $node["nodeAnterior"].json.imuReadings }}
+}
+```
+
+---
+
+## Endpoints Legacy (Compatibilidad)
+
+### Módulo A - Formato directo
+```
+POST /api/ml/modulo-a/prediccion
+```
+
+Acepta listas directas de valores (para integración sin n8n):
+```json
+{
+    "hr_vals": [72, 73, 74, ...],      // 30 valores
+    "spo2_vals": [98, 98, 97, ...],    // 30 valores
+    "temp_vals": [36.5, 36.5, ...]     // 30 valores
+}
+```
+
+### Módulo B - Formato directo
+```
+POST /api/ml/modulo-b/prediccion
+```
+
+Acepta listas directas de valores (para integración sin n8n):
+```json
+{
+    "ax_vals": [0.1, 0.2, ...],        // 20 valores
+    "ay_vals": [0.1, 0.2, ...],        // 20 valores
+    "az_vals": [9.8, 9.8, ...],        // 20 valores
+    "gx_vals": [0.01, 0.02, ...],      // 20 valores
+    "gy_vals": [0.01, 0.02, ...],      // 20 valores
+    "gz_vals": [0.01, 0.02, ...]       // 20 valores
 }
 ```
 
@@ -143,28 +286,25 @@ Body (JSON):
 ## Notas Importantes
 
 ### Requisitos de datos
-1. **Módulo A**: Siempre necesita exactamente **30 valores** de cada sensor biométrico
-2. **Módulo B**: Siempre necesita exactamente **20 valores** de cada sensor IMU
-3. Los valores deben estar en el orden correcto (orden temporal)
+1. **Módulo A (n8n)**: Necesita al menos 30 lecturas biométricas con heart_rate, spo2, tenp
+2. **Módulo B (n8n)**: Necesita al menos 20 lecturas IMU con ax, ay, az, gx, gy, gz
+3. Los valores deben estar en orden temporal
+4. El endpoint automáticamente usa los últimos 30 o 20 valores del array
 
-### Integración con n8n
-- Los endpoints **NO requieren autenticación** (token Bearer)
-- Se comunican por HTTP POST
-- Aceptan y retornan JSON
-- Ideales para integrarse en workflows de n8n
+### Flujo típico en n8n
+
+1. **Recibir datos MQTT** → Nodo MQTT con el payload biométrico
+2. **Acumular datos** → Usar un array que guarde las últimas N lecturas
+3. **Enviar a API ML** → POST a `/api/ml/modulo-a/prediccion/n8n` o `/api/ml/modulo-b/prediccion/n8n`
+4. **Procesar resultado** → Guardar en Firestore, enviar notificación, etc.
 
 ### Consideraciones de rendimiento
 - Módulo A: ~50ms de predicción (FeedForward - rápido)
 - Módulo B: ~30ms de predicción (LSTM ligero)
-- Usa estos endpoints para procesamiento en tiempo real
+- Ideales para procesamiento en tiempo real desde n8n
 
-### Almacenamiento de resultados
-Después de obtener las predicciones, n8n puede:
-- Guardar resultados en Firestore
-- Enviar notificaciones
-- Gatillar alertas
-- Actualizar dashboards
-- Registrar en logs
+### Campo "tenp" con typo
+El campo `tenp` (temperatura) viene con typo desde el dispositivo. El backend maneja esto automáticamente, pero es importante notar que en los datos raw MQTT verás `tenp` en lugar de `temp`.
 
 ---
 
@@ -172,14 +312,16 @@ Después de obtener las predicciones, n8n puede:
 
 ### Desarrollo local
 ```
-POST http://localhost:8000/api/ml/modulo-a/prediccion
-POST http://localhost:8000/api/ml/modulo-b/prediccion
+POST http://localhost:8000/api/ml/modulo-a/prediccion/n8n
+POST http://localhost:8000/api/ml/modulo-b/prediccion/n8n
+POST http://localhost:8000/api/ml/modulo-a/prediccion      (legacy)
+POST http://localhost:8000/api/ml/modulo-b/prediccion      (legacy)
 ```
 
 ### Producción (ajusta según tu dominio)
 ```
-POST https://tudominio.com/api/ml/modulo-a/prediccion
-POST https://tudominio.com/api/ml/modulo-b/prediccion
+POST https://tudominio.com/api/ml/modulo-a/prediccion/n8n
+POST https://tudominio.com/api/ml/modulo-b/prediccion/n8n
 ```
 
 ---
