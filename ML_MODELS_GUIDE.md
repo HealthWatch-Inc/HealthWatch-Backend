@@ -9,7 +9,7 @@ InfluxDB (biometrics)
     │   ├── obtener_ultima_ventana()       → HR, SpO2, Temp (30 lecturas)
     │   └── obtener_ultima_ventana_imu()   → ax, ay, az, gx, gy, gz (20 lecturas)
     │
-    ├── app/services/ml_services.py        → Módulo A: Clasificación Salud
+    ├── app/services/ml_services.py        → Módulo A: Clasificación Salud (FeedForward)
     │   └── predecir_ventana(hr, spo2, temp) → "okay" | "warning" | "bad"
     │
     ├── app/services/ml_fall_service.py    → Módulo B: Detección Caídas
@@ -28,12 +28,12 @@ InfluxDB (biometrics)
 ## Módulo A: Clasificación de Salud (Estrés/Fatiga)
 
 ### Modelo
-- **Tipo:** LSTM (PyTorch)
+- **Tipo:** FeedForward (PyTorch)
 - **Archivos:** `app/models/modulo_a/`
-  - `modelo_lstm_health.pth` - pesos del modelo
-  - `config_lstm.pkl` - hiperparámetros (window_size=30, input_size=3, hidden_size, etc.)
-  - `scaler_lstm.pkl` - StandardScaler para normalizar features
-  - `label_mapping_lstm.pkl` - mapeo de clases: `{"okay": 0, "warning": 1, "bad": 2}`
+  - `modelo_feedforward_health.pth` - pesos del modelo
+  - `config_feedforward.pkl` - hiperparámetros (window_size=30, input_size=90, hidden_size=64, num_classes=3)
+  - `scaler_feedforward.pkl` - StandardScaler para normalizar features
+  - `label_mapping_feedforward.pkl` - mapeo de clases: `{"okay": 0, "warning": 1, "bad": 2}`
 
 ### Input esperado
 - 3 listas de **exactamente 30 valores** cada una (ventana de 30 lecturas):
@@ -135,7 +135,7 @@ Response:
 
 ### 1. Clasificación Salud (`alertas_ml.py`)
 - **Intervalo:** cada **15 segundos**
-- **Qué hace:** Itera todos los pacientes en Firestore, obtiene sus últimas 30 lecturas de InfluxDB, ejecuta el modelo LSTM, guarda `ultima_clasificacion` y `ultima_actualizacion_ml` en Firestore
+- **Qué hace:** Itera todos los pacientes en Firestore, obtiene sus últimas 30 lecturas de InfluxDB, ejecuta el modelo FeedForward, guarda `ultima_clasificacion` y `ultima_actualizacion_ml` en Firestore
 - **Alertas push:** Si detecta `"warning"` o `"bad"`, envía notificación FCM a todos los cuidadores asignados (con cooldown de 5 min por paciente)
 
 ### 2. Detección Caídas (`alertas_caidas.py`)
@@ -200,7 +200,7 @@ ESP32/Mock → MQTT (Mosquitto:1883) → Telegraf → InfluxDB 3 Core
 | GET | `/api/pacientes/` | - | Listar pacientes asignados |
 | GET | `/api/pacientes/{id}` | - | Perfil del paciente |
 | GET | `/api/pacientes/{id}/telemetria` | - | Historial de telemetría |
-| **GET** | **`/api/pacientes/{id}/estado`** | **A** | **Clasificación salud (LSTM)** |
+| **GET** | **`/api/pacientes/{id}/estado`** | **A** | **Clasificación salud (FeedForward)** |
 | **GET** | **`/api/pacientes/{id}/estado_caida`** | **B** | **Detección de caídas (LSTM)** |
 | GET/POST/PUT/DELETE | `/api/medicamentos/{id}` | - | CRUD medicamentos |
 | PUT | `/api/usuarios/fcm-token` | - | Registrar token notificaciones |
