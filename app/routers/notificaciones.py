@@ -51,5 +51,5 @@ def notificar_emergencia(req: NotificationRequest):
 
 @router.post("/signos")
 def notificar_signos(req: NotificationRequest):
-  enviar_alerta(req.paciente_id, "emergencia")
+  enviar_alerta(req.paciente_id, "signos")
   return {"ok": True}

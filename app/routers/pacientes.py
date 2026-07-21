@@ -5,6 +5,8 @@ from app.services.ml_services import predecir_ventana
 from app.services.telemetria_service import obtener_ultima_ventana
 from app.services.ml_fall_service import predecir_caida
 from app.services.telemetria_service import obtener_ultima_ventana_imu
+from app.core.config import db
+from google.cloud import firestore
 
 router = APIRouter(
     prefix="/api/pacientes",
@@ -100,6 +102,27 @@ def obtener_estado_actual(paciente_id: str, usuario_actual: dict = Depends(verif
         "probabilidades": probs,
         "ultima_lectura": ventana[-1]  # la más reciente
     }
+
+@router.get("/{paciente_id}/caidas")
+def obtener_historial_caidas(paciente_id: str, usuario_actual: dict = Depends(verificar_token)):
+    uid_cuidador = usuario_actual.get("uid")
+    paciente = pacientes_service.obtener_paciente_por_id(paciente_id)
+    if not paciente:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado")
+    if uid_cuidador not in paciente.get("cuidadores_asignados", []):
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+    
+    try:
+        docs = db.collection("pacientes").document(paciente_id).collection("caidas").order_by("timestamp", direction=firestore.Query.DESCENDING).limit(50).get()
+        caidas = []
+        for d in docs:
+            data = d.to_dict()
+            data["id"] = d.id
+            caidas.append(data)
+        return {"caidas": caidas, "total": len(caidas)}
+    except Exception as e:
+        print(f"Error obteniendo historial de caídas: {e}")
+        return {"caidas": [], "total": 0}
 
 @router.get("/{paciente_id}/estado_caida")
 def obtener_estado_caida(paciente_id: str, usuario_actual: dict = Depends(verificar_token)):
