@@ -42,11 +42,12 @@ def revisar_medicamentos_y_notificar():
                         print(f"Token encontrado: {token_celular}")
                         
                         if token_celular:
-                            enviar_notificacion_push(token_celular, nombre_med)
+                            enviar_notificacion_push(token_celular, "Recordatorio de Medicamento", f"Es hora de administrar: {nombre_med}")
                             
     except Exception as e:
         print(f"Error en el motor de revisión: {e}")
 
+"""
 def enviar_notificacion_push(token: str, medicamento: str):
     url = "https://exp.host/--/api/v2/push/send"
     
@@ -68,6 +69,51 @@ def enviar_notificacion_push(token: str, medicamento: str):
         
     except Exception as e:
         print(f"Error al enviar notificación a través de Expo: {e}")
+"""
+
+def enviar_notificacion_push(token: str, titulo: str, mensaje: str, tipo: str):
+    url = "https://exp.host/--/api/v2/push/send"
+    
+    payload = {
+        "to": token,
+        "sound": "default",
+        "title": titulo,
+        "body": mensaje,
+        "data": {
+            "tipo": tipo
+        }
+    }
+    
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip, deflate"
+    }
+    
+    try:
+        requests.post(url, json=payload, headers=headers)
+        
+    except Exception as e:
+        print(f"Error al enviar notificación a través de Expo: {e}")
+
+def notificar_cuidadores(paciente_id: str, titulo:str, mensaje:str, tipo:str):
+    paciente_doc = db.collection("pacientes").document(paciente_id).get()
+    
+    if not paciente_doc.exists:
+        raise ValueError("Paciente no encontrado")
+    
+    cuidadores = paciente_doc.to_dict()["cuidadores_asignados"]
+
+    for uid in cuidadores:
+        usuario = db.collection("usuarios").document(uid).get()
+
+        if not usuario.exists:
+            continue
+
+        token = usuario.to_dict().get("expo_token")
+
+        if token:
+            enviar_notificacion_push(token, titulo, mensaje, tipo)
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(revisar_medicamentos_y_notificar, 'interval', minutes=1)
